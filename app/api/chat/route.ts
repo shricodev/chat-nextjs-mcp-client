@@ -1,14 +1,37 @@
-import { type CoreMessage, streamText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { NextRequest, NextResponse } from "next/server";
+import { initMCP, processQuery } from "@/lib/mcp-client";
 
-export async function POST(req: Request) {
-  const { messages }: { messages: CoreMessage[] } = await req.json();
+const SERVER_PATH =
+  "/home/shricodev/codes/work/blogs/composio/builds/mcp-client/chat-mcp-server/build/index.js";
 
-  const result = streamText({
-    model: openai("gpt-4o-mini"),
-    system: "You are a helpful assistant.",
-    messages,
-  });
+export async function POST(req: NextRequest) {
+  const { messages } = await req.json();
+  const userQuery = messages[messages.length - 1].content;
 
-  return result.toDataStreamResponse();
+  if (!userQuery) {
+    return NextResponse.json(
+      {
+        error: "No query provided",
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
+    await initMCP(SERVER_PATH);
+    const reply = await processQuery(userQuery);
+
+    return NextResponse.json({
+      role: "assistant",
+      content: reply,
+    });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      {
+        error: "Something went wrong",
+      },
+      { status: 500 },
+    );
+  }
 }

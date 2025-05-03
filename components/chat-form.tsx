@@ -19,6 +19,12 @@ export function ChatForm({
 }: React.ComponentProps<"form">) {
   const { messages, input, setInput, append } = useChat({
     api: "/api/chat",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: (message) => ({
+      messages: [...messages, { role: "user", content: message }],
+    }),
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -40,13 +46,16 @@ export function ChatForm({
         Basic AI Chatbot Template
       </h1>
       <p className="text-muted-foreground text-sm">
-        This is an AI chatbot app template built with{" "}
-        <span className="text-foreground">Next.js</span>, the{" "}
-        <span className="text-foreground">Vercel AI SDK</span>, and{" "}
-        <span className="text-foreground">Vercel KV</span>.
+        This is an AI chatbot app built with{" "}
+        <span className="text-foreground">Next.js</span>
+        <span>, </span>
+        <span className="text-foreground">Vercel AI SDK</span>
       </p>
       <p className="text-muted-foreground text-sm">
-        Connect an API Key from your provider and send a message to get started.
+        Connect an API Key from OPENAI to get started.
+      </p>
+      <p className="text-muted-foreground text-sm">
+        Built with 🤍 by Shrijal Acharya (@shricodev)
       </p>
     </header>
   );
