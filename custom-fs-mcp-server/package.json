@@ -1,0 +1,31 @@
+{
+  "name": "mcp-server",
+  "version": "1.0.0",
+  "description": "Custom MCP server with a few tools support",
+  "license": "MIT",
+  "author": "Shrijal Acharya <shrijal.acharya@gmail.com>",
+  "type": "module",
+  "main": "src/index.ts",
+  "bin": {
+    "mcp-filesystem": "build/index.js"
+  },
+  "scripts": {
+    "build": "tsc && chmod 755 build/*.js",
+    "dev": "npm run build && node build/index.js ~",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.1",
+    "@types/diff": "^7.0.2",
+    "@types/node": "^22.15.3",
+    "eslint": "^9.25.1",
+    "globals": "^16.0.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.0",
+    "diff": "^7.0.0",
+    "minimatch": "^10.0.1"
+  }
+}
