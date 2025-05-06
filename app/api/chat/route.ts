@@ -1,36 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
-import { initMCP, processQuery } from "@/lib/mcp-client";
+import { OpenAI } from "openai";
+import { OpenAIToolSet } from "composio-core";
+import { tool } from "ai";
 
-const SERVER_PATH =
-  "/home/shricodev/codes/work/blogs/composio/builds/mcp-client/chat-mcp-server/build/index.js";
+const toolset = new OpenAIToolSet();
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function POST(req: NextRequest) {
   const { messages } = await req.json();
-  const userQuery = messages[messages.length - 1].content;
 
+  const userQuery = messages[messages.length - 1]?.content;
   if (!userQuery) {
     return NextResponse.json(
-      {
-        error: "No query provided",
-      },
+      { error: "No user query found in request" },
       { status: 400 },
     );
   }
 
   try {
-    await initMCP(SERVER_PATH);
-    const reply = await processQuery(userQuery);
+    const tools = await toolset.getTools({
+      actions: ["GITHUB_GET_THE_AUTHENTICATED_USER"],
+    });
+
+    const fullMessages = [
+      {
+        role: "system",
+        content: "You are a helpful assistant that can use tools.",
+      },
+      ...messages,
+    ];
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: fullMessages,
+      tools,
+      tool_choice: "auto",
+    });
+
+    const toolResponse = await toolset.handleToolCall(response);
+    console.log("toolResponse", toolResponse);
+
+    const parsed = JSON.parse(toolResponse[0]);
+    const username = parsed?.data?.login;
 
     return NextResponse.json({
       role: "assistant",
-      content: reply,
+      content: username ?? "No login found in tool response.",
     });
   } catch (err) {
     console.error(err);
     return NextResponse.json(
-      {
-        error: "Something went wrong",
-      },
+      { error: "Something went wrong!" },
       { status: 500 },
     );
   }

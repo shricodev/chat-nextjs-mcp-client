@@ -17,6 +17,7 @@
     "ai": "^4.3.13",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "composio-core": "^0.5.36",
     "dotenv": "^16.5.0",
     "lucide-react": "^0.503.0",
     "next": "15.3.1",
