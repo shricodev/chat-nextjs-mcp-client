@@ -15,7 +15,9 @@ const openai = new OpenAI({
 });
 const mcp = new Client({ name: "nextjs-mcp-client", version: "1.0.0" });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let tools: any[] = [];
+
 let connected = false;
 
 export async function initMCP(serverScriptPath: string) {
@@ -52,13 +54,34 @@ export async function initMCP(serverScriptPath: string) {
   );
 }
 
-export async function processQuery(query: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function executeToolCall(toolCall: any) {
+  const toolName = toolCall.function.name;
+  const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+
+  const result = await mcp.callTool({
+    name: toolName,
+    arguments: toolArgs,
+  });
+
+  return {
+    id: toolCall.id,
+    name: toolName,
+    arguments: toolArgs,
+    result: result.content,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function processQuery(messagesInput: any[]) {
   const messages: OpenAI.ChatCompletionMessageParam[] = [
     {
-      role: "user",
-      content: query,
+      role: "system",
+      content: "You are a helpful assistant that can use tools.",
     },
+    ...messagesInput,
   ];
+
   const response = await openai.chat.completions.create({
     model: MODEL_NAME,
     max_tokens: 1000,
@@ -66,39 +89,44 @@ export async function processQuery(query: string) {
     tools,
   });
 
-  const reply = response.choices[0].message;
+  const replyMessage = response.choices[0].message;
+  const toolCalls = replyMessage.tool_calls || [];
 
-  if (reply.tool_calls?.length) {
-    const toolCall = reply.tool_calls[0];
-    const toolName = toolCall.function.name;
-    const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+  if (toolCalls.length > 0) {
+    const toolResponses = [];
 
-    const result = await mcp.callTool({
-      name: toolName,
-      arguments: toolArgs,
-    });
+    for (const toolCall of toolCalls) {
+      const toolResponse = await executeToolCall(toolCall);
+      toolResponses.push(toolResponse);
 
-    messages.push({
-      role: "assistant",
-      content: null,
-      tool_calls: reply.tool_calls,
-    });
-    messages.push({
-      role: "tool",
-      content: result.content as string,
-      tool_call_id: toolCall.id,
-    });
+      messages.push({
+        role: "assistant",
+        content: null,
+        tool_calls: [toolCall],
+      });
 
-    const response2 = await openai.chat.completions.create({
+      messages.push({
+        role: "tool",
+        content: toolResponse.result as string,
+        tool_call_id: toolCall.id,
+      });
+    }
+
+    const followUp = await openai.chat.completions.create({
       model: MODEL_NAME,
-      // max_tokens: 1000,
       messages,
     });
 
-    console.log(messages[2].content);
-
-    return response2.choices[0].message.content;
+    return {
+      reply: followUp.choices[0].message.content || "",
+      toolCalls,
+      toolResponses,
+    };
   }
 
-  return reply.content || "";
+  return {
+    reply: replyMessage.content || "",
+    toolCalls: [],
+    toolResponses: [],
+  };
 }

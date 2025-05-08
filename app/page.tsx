@@ -1,5 +1,5 @@
-import { ChatForm } from "@/components/chat-form";
+import { Chat } from "@/components/chat";
 
 export default function Page() {
-  return <ChatForm />;
+  return <Chat />;
 }

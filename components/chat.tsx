@@ -9,21 +9,38 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AutoResizeTextarea } from "@/components/autoresize-textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 type Message = {
   role: "user" | "assistant";
-  content: string;
+  content: string | object;
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+  toolResponses?: any[];
 };
 
-export function ChatForm() {
+export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setLoading(true);
+
+    // Add a temp loading msg for AI
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: "Hang on..." },
+    ]);
 
     try {
       const res = await fetch("/api/chat", {
@@ -38,14 +55,22 @@ export function ChatForm() {
           ? data.content
           : "Sorry... got no response from the server";
 
-      const assistantMessage: Message = {
-        role: "assistant",
-        content,
-      };
+      const toolResponses = Array.isArray(data?.toolResponses)
+        ? data.toolResponses
+        : [];
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [
+        ...prev.slice(0, -1), // remove the loading message
+        { role: "assistant", content, toolResponses },
+      ]);
     } catch (err) {
       console.error("Chat error:", err);
+      setMessages((prev) => [
+        ...prev.slice(0, -1),
+        { role: "assistant", content: "Oops! Something went wrong." },
+      ]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -67,7 +92,7 @@ export function ChatForm() {
             <p className="text-muted-foreground text-sm">
               This is an AI chatbot app built with{" "}
               <span className="text-foreground">Next.js</span>,{" "}
-              <span className="text-foreground">custom MCP backend</span>
+              <span className="text-foreground">MCP backend</span>
             </p>
             <p className="text-muted-foreground text-sm">
               Built with 🤍 by Shrijal Acharya (@shricodev)
@@ -76,19 +101,50 @@ export function ChatForm() {
         ) : (
           <div className="my-4 flex h-fit min-h-full flex-col gap-4">
             {messages.map((message, index) => (
-              <div
-                key={index}
-                className="max-w-[80%] rounded-xl px-3 py-2 text-sm data-[role=assistant]:self-start data-[role=user]:self-end"
-                data-role={message.role}
-                style={{
-                  alignSelf:
-                    message.role === "user" ? "flex-end" : "flex-start",
-                  backgroundColor:
-                    message.role === "user" ? "#3b82f6" : "#f3f4f6",
-                  color: message.role === "user" ? "white" : "black",
-                }}
-              >
-                {message.content}
+              <div key={index} className="flex flex-col gap-2">
+                {message.role === "assistant" &&
+                  Array.isArray(message.toolResponses) &&
+                  message.toolResponses.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">
+                          Tool Responses
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Accordion type="multiple" className="w-full">
+                          {message.toolResponses.map((toolRes, i) => (
+                            <AccordionItem key={i} value={`item-${i}`}>
+                              <AccordionTrigger>
+                                Tool Call #{i + 1}
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <pre className="whitespace-pre-wrap break-words text-sm">
+                                  {JSON.stringify(toolRes, null, 2)}
+                                </pre>
+                              </AccordionContent>
+                            </AccordionItem>
+                          ))}
+                        </Accordion>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                <div
+                  className="max-w-[80%] rounded-xl px-3 py-2 text-sm data-[role=assistant]:self-start data-[role=user]:self-end"
+                  data-role={message.role}
+                  style={{
+                    alignSelf:
+                      message.role === "user" ? "flex-end" : "flex-start",
+                    backgroundColor:
+                      message.role === "user" ? "#3b82f6" : "#f3f4f6",
+                    color: message.role === "user" ? "white" : "black",
+                  }}
+                >
+                  {typeof message.content === "string"
+                    ? message.content
+                    : JSON.stringify(message.content, null, 2)}
+                </div>
               </div>
             ))}
           </div>
@@ -112,6 +168,7 @@ export function ChatForm() {
               variant="ghost"
               size="sm"
               className="absolute bottom-1 right-1 size-6 rounded-full"
+              disabled={!input.trim() || loading}
             >
               <ArrowUpIcon size={16} />
             </Button>
