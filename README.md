@@ -1,5 +1,7 @@
 # 💬 MCP Chatbot – Composio + Local MCP servers
 
+> Built with [Composio](https://composio.dev) 🚀
+
 ## 👀 Check Out My Blog Post on this Project!
 
 > I have a blog post about this project [here](https://dev.to/composiodev/build-your-own-chat-mcp-client-with-nextjs-4a0k).
